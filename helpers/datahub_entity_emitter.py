@@ -1,5 +1,6 @@
 #%% 
 
+import requests
 from datahub.emitter.mcp import MetadataChangeProposalWrapper
 import datahub.metadata.schema_classes as models
 import datahub.emitter.mce_builder as builder
@@ -13,6 +14,8 @@ class DatahubEntityEmitter(DatahubRestEmitter):
     def __init__(self, env='DEV', datahub_actor='urn:li:corpuser:admin', dataset_platform='bigquery', dashboard_platform='bigquery',*args, **kwargs):
         super(DatahubEntityEmitter, self).__init__(*args, **kwargs)
         self.env = env
+        self.datahub_gms_server = kwargs.get('gms_server',None)
+        self.datahub_token = kwargs.get('token',None)
         self.datahub_actor = datahub_actor
         self.dataset_platform = dataset_platform
         self.dashboard_platform = dashboard_platform
@@ -323,3 +326,58 @@ class DatahubEntityEmitter(DatahubRestEmitter):
                 )
             )
             self.emit_mcp(mcp=mcpw)
+
+    def dataset_add_tag(self, name, tag):
+
+        resource_urn = f"urn:li:dataset:(urn:li:dataPlatform:{self.dataset_platform},{name},{self.env})"
+        url = f"{self.datahub_gms_server}/api/graphql"
+        headers = {
+            f'Authorization': f'Bearer {self.datahub_token}',
+            'X-DataHub-Actor': self.datahub_actor
+            }
+
+        graphql_query_add_tag = {
+            "query": """mutation addTag($input: TagAssociationInput!) {\n
+                addTag(input: $input)
+            }""",
+            "variables": {
+                "input": {
+                    "tagUrn": f"urn:li:tag:{tag}",
+                    "resourceUrn": resource_urn
+                }
+            }
+        }
+
+        requests.post(
+            url,
+            json=graphql_query_add_tag,
+            headers=headers
+        )
+
+    def dataset_remove_tag(self, name, tag):
+
+        resource_urn = f"urn:li:dataset:(urn:li:dataPlatform:{self.dataset_platform},{name},{self.env})"
+        url = f"{self.datahub_gms_server}/api/graphql"
+        headers = {
+            f'Authorization': f'Bearer {self.datahub_token}',
+            'X-DataHub-Actor': self.datahub_actor
+            }
+
+        graphql_query_remove_tag = {
+            "query": """mutation removeTag($input: TagAssociationInput!) {\n
+                removeTag(input: $input)
+            }""",
+            "variables": {
+                "input": {
+                    "tagUrn": f"urn:li:tag:{tag}",
+                    "resourceUrn": resource_urn
+                }
+            }
+        }
+
+        requests.post(
+            url,
+            json=graphql_query_remove_tag,
+            headers=headers
+        )
+
